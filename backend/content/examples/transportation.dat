@@ -1,0 +1,21 @@
+# Data for Transportation Problem
+
+set ORIGINS := Seattle Denver Chicago;
+set DESTINATIONS := NewYork Boston LA Dallas;
+
+param supply :=
+    Seattle  350
+    Denver   600
+    Chicago  400;
+
+param demand :=
+    NewYork  325
+    Boston   250
+    LA       275
+    Dallas   300;
+
+param cost:
+            NewYork  Boston  LA    Dallas :=
+    Seattle    2.5     3.0    1.8   2.2
+    Denver     1.8     2.2    1.4   1.0
+    Chicago    1.2     1.5    2.0   1.3;
