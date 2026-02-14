@@ -36,10 +36,11 @@ export interface DataFile {
 export interface OptimizationRun {
   id: number
   model_id: number
+  model_name?: string | null
   data_file_id: number | null
   solver_name: string
   solver_options: Record<string, unknown>
-  status: 'pending' | 'queued' | 'running' | 'optimal' | 'infeasible' | 'error' | 'cancelled'
+  status: 'pending' | 'queued' | 'running' | 'optimal' | 'infeasible' | 'unbounded' | 'unknown' | 'error' | 'cancelled'
   objective_value: number | null
   solve_time: number | null
   iterations: number | null
@@ -51,6 +52,11 @@ export interface OptimizationRun {
   started_at: string | null
   completed_at: string | null
   created_at: string
+}
+
+export interface SolverResultList {
+  total: number
+  items: OptimizationRun[]
 }
 
 export interface SolverJobResponse {
@@ -93,6 +99,9 @@ export const solverApi = {
   run: (data: { model_id: number; data_file_id?: number; solver: string; options?: Record<string, unknown>; timeout?: number }) =>
     api.post<SolverJobResponse>('/solver/run', data),
   getStatus: (jobId: string) => api.get<SolverJobStatus>(`/solver/status/${jobId}`),
+  getResult: (resultId: number) => api.get<OptimizationRun>(`/solver/results/${resultId}`),
+  listResults: (params?: { skip?: number; limit?: number; model_id?: number }) =>
+    api.get<SolverResultList>('/solver/results', { params }),
   cancel: (jobId: string) => api.post(`/solver/cancel/${jobId}`),
 }
 
@@ -159,8 +168,14 @@ export const filesApi = {
 }
 
 export const tutorApi = {
-  ask: (message: string, context?: string, topic?: string) =>
-    api.post('/tutor/ask', { message, context, topic }),
+  ask: (payload: {
+    message: string
+    context?: string
+    topic?: string
+    result_id?: number
+    analysis_focus?: 'network' | 'sensitivity' | 'variables' | 'overall'
+    include_visualization_context?: boolean
+  }) => api.post('/tutor/ask', payload),
   listTopics: () => api.get('/tutor/topics'),
   getTopic: (topicId: string) => api.get(`/tutor/topic/${topicId}`),
   explainCode: (code: string) => api.post('/tutor/explain-code', { code }),

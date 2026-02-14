@@ -16,7 +16,12 @@ async def import_excel(file: UploadFile = File(...)):
     - Sets: Sheet with single column becomes a set
     - Parameters: Sheet with index columns + value column becomes indexed param
     """
-    if not file.filename.endswith(('.xlsx', '.xls')):
+    original_filename = file.filename
+    if not original_filename:
+        raise HTTPException(status_code=400, detail="File must be Excel format")
+
+    filename = original_filename.lower()
+    if not filename.endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="File must be Excel format")
 
     try:
@@ -35,7 +40,7 @@ async def import_excel(file: UploadFile = File(...)):
             # Determine type based on structure
             if len(df.columns) == 1:
                 # Single column = set
-                set_name = sheet_name.upper().replace(" ", "_")
+                set_name = str(sheet_name).upper().replace(" ", "_")
                 members = " ".join(str(v) for v in df.iloc[:, 0].dropna())
                 dat_content.append(f"set {set_name} := {members};")
                 sheet_info.append({
@@ -47,7 +52,7 @@ async def import_excel(file: UploadFile = File(...)):
 
             elif len(df.columns) == 2:
                 # Two columns = simple indexed parameter
-                param_name = sheet_name.lower().replace(" ", "_")
+                param_name = str(sheet_name).lower().replace(" ", "_")
                 dat_content.append(f"param {param_name} :=")
                 for _, row in df.iterrows():
                     dat_content.append(f"    {row.iloc[0]} {row.iloc[1]}")
@@ -61,7 +66,7 @@ async def import_excel(file: UploadFile = File(...)):
 
             else:
                 # Multiple columns = table format parameter
-                param_name = sheet_name.lower().replace(" ", "_")
+                param_name = str(sheet_name).lower().replace(" ", "_")
                 # First column is row index, rest are column indices
                 col_headers = " ".join(str(c) for c in df.columns[1:])
                 dat_content.append(f"param {param_name}:")
@@ -127,7 +132,7 @@ async def export_results_to_excel(result_id: int):
                 for v in var_results:
                     var_data.append({
                         "Variable": v.variable_name,
-                        "Index": str(v.indices) if v.indices else "",
+                        "Index": str(v.indices) if v.indices is not None else "",
                         "Value": v.value,
                         "Reduced Cost": v.reduced_cost,
                         "Lower Bound": v.lower_bound,
@@ -145,7 +150,7 @@ async def export_results_to_excel(result_id: int):
                 for c in con_results:
                     con_data.append({
                         "Constraint": c.constraint_name,
-                        "Index": str(c.indices) if c.indices else "",
+                        "Index": str(c.indices) if c.indices is not None else "",
                         "Body": c.body,
                         "Dual (Shadow Price)": c.dual,
                         "Slack": c.slack,

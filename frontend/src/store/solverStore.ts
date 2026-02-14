@@ -13,7 +13,7 @@ interface SolverState {
   // Actions
   fetchSolvers: () => Promise<void>
   setSelectedSolver: (solver: string) => void
-  runSolver: (modelId: number, dataFileId?: number, options?: object) => Promise<void>
+  runSolver: (modelId: number, dataFileId?: number, options?: Record<string, unknown>) => Promise<void>
   checkStatus: () => Promise<void>
   cancelJob: () => Promise<void>
   clearResult: () => void
@@ -44,7 +44,7 @@ export const useSolverStore = create<SolverState>((set, get) => ({
 
   setSelectedSolver: (solver) => set({ selectedSolver: solver }),
 
-  runSolver: async (modelId: number, dataFileId?: number, options?: object) => {
+  runSolver: async (modelId: number, dataFileId?: number, options?: Record<string, unknown>) => {
     const { selectedSolver } = get()
     set({ isRunning: true, error: null, solverOutput: '' })
 
@@ -71,16 +71,25 @@ export const useSolverStore = create<SolverState>((set, get) => ({
             set({ solverOutput: status.progress.message || '' })
           }
 
-          if (status.status === 'completed') {
+          if (status.status === 'completed' && status.result_id !== null) {
+            const resultResponse = await solverApi.getResult(status.result_id)
             set({
               isRunning: false,
-              lastResult: { id: status.result_id } as OptimizationRun,
+              lastResult: resultResponse.data,
               solverOutput: 'Optimization completed successfully!',
+              currentJobId: null,
             })
           } else if (status.status === 'failed') {
             set({
               isRunning: false,
               error: status.error || 'Solver failed',
+              currentJobId: null,
+            })
+          } else if (status.status === 'cancelled') {
+            set({
+              isRunning: false,
+              solverOutput: 'Solver job cancelled.',
+              currentJobId: null,
             })
           } else {
             // Continue polling
@@ -103,8 +112,9 @@ export const useSolverStore = create<SolverState>((set, get) => ({
 
     try {
       const response = await solverApi.getStatus(currentJobId)
-      if (response.data.status === 'completed') {
-        set({ lastResult: { id: response.data.result_id } as OptimizationRun })
+      if (response.data.status === 'completed' && response.data.result_id !== null) {
+        const resultResponse = await solverApi.getResult(response.data.result_id)
+        set({ lastResult: resultResponse.data })
       }
     } catch (error) {
       set({ error: 'Failed to check status' })

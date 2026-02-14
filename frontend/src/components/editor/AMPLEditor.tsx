@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import Editor, { OnMount, Monaco } from '@monaco-editor/react'
 import type { editor } from 'monaco-editor'
 
@@ -16,6 +16,7 @@ export default function AMPLEditor({
   readOnly = false,
 }: AMPLEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const editorLanguage = language === 'ampl-data' ? 'ampl' : language
 
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor
@@ -26,14 +27,14 @@ export default function AMPLEditor({
     // Set the language for the current model
     const model = editor.getModel()
     if (model) {
-      monaco.editor.setModelLanguage(model, 'ampl')
+      monaco.editor.setModelLanguage(model, editorLanguage)
     }
   }
 
   return (
     <Editor
       height="100%"
-      defaultLanguage="ampl"
+      defaultLanguage={editorLanguage}
       value={value}
       onChange={(value) => onChange(value || '')}
       onMount={handleEditorDidMount}

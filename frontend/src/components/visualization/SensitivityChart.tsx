@@ -30,7 +30,7 @@ interface SensitivityChartProps {
 
 export default function SensitivityChart({ data, type }: SensitivityChartProps) {
   // Transform data for the chart
-  const chartData = data.map((item, index) => {
+  const chartData = data.map((item) => {
     if (type === 'shadow_prices') {
       const sp = item as ShadowPriceData
       return {

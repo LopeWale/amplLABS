@@ -17,3 +17,4 @@ backend/app/services/__pycache__
 backend/app/db/__pycache__
 backend/app/main/__pycache__
 .claude
+**/__pycache__/

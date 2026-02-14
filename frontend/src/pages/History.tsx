@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, CheckCircle, XCircle, AlertCircle, BarChart3, Trash2 } from 'lucide-react'
-import Card, { CardHeader } from '../components/common/Card'
+import { Clock, CheckCircle, XCircle, AlertCircle, BarChart3 } from 'lucide-react'
+import Card from '../components/common/Card'
 import Button from '../components/common/Button'
-import api from '../api'
+import { solverApi } from '../api'
 
 interface HistoryItem {
   id: number
   model_id: number
-  model_name?: string
+  model_name?: string | null
   solver_name: string
   status: string
   objective_value: number | null
@@ -26,8 +26,10 @@ export default function History() {
 
   const loadHistory = async () => {
     try {
-      // This would need a results listing endpoint
-      // For now, using a placeholder
+      const response = await solverApi.listResults({ limit: 200 })
+      setHistory(response.data.items)
+    } catch (error) {
+      console.error('Failed to load optimization history:', error)
       setHistory([])
     } finally {
       setIsLoading(false)
@@ -139,9 +141,6 @@ export default function History() {
                             <BarChart3 size={16} />
                           </Button>
                         </Link>
-                        <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50">
-                          <Trash2 size={16} />
-                        </Button>
                       </div>
                     </td>
                   </tr>

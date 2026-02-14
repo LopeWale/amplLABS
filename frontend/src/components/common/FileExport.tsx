@@ -1,4 +1,4 @@
-import { Download, FileText, File, Package } from 'lucide-react'
+import { FileText, File, Package } from 'lucide-react'
 import Button from './Button'
 
 interface FileExportProps {

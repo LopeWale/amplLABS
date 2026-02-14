@@ -1,20 +1,23 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Network, BarChart3, TrendingUp, Download } from 'lucide-react'
+import { Network, BarChart3, TrendingUp, Download, MessageSquare } from 'lucide-react'
 import Card, { CardHeader } from '../components/common/Card'
 import Button from '../components/common/Button'
 import NetworkGraph from '../components/visualization/NetworkGraph'
 import SensitivityChart from '../components/visualization/SensitivityChart'
-import { visualizationApi } from '../api'
+import { visualizationApi, solverApi, OptimizationRun } from '../api'
+import { useTutorStore } from '../store/tutorStore'
 
 type TabType = 'network' | 'sensitivity' | 'variables'
 
 export default function Visualization() {
   const { resultId } = useParams()
+  const { openWithResultContext } = useTutorStore()
   const [activeTab, setActiveTab] = useState<TabType>('network')
   const [networkData, setNetworkData] = useState<any>(null)
   const [sensitivityData, setSensitivityData] = useState<any>(null)
   const [variablesData, setVariablesData] = useState<any>(null)
+  const [resultSummary, setResultSummary] = useState<OptimizationRun | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
@@ -31,14 +34,35 @@ export default function Visualization() {
         visualizationApi.getSensitivityData(id),
         visualizationApi.getVariablesData(id),
       ])
+      const resultRes = await solverApi.getResult(id)
       setNetworkData(networkRes.data)
       setSensitivityData(sensitivityRes.data)
       setVariablesData(variablesRes.data)
+      setResultSummary(resultRes.data)
     } catch (error) {
       console.error('Failed to load visualization data:', error)
+      setResultSummary(null)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const explainResults = () => {
+    if (!resultId) return
+    const id = parseInt(resultId)
+    const seedMessage = `Explain the ${activeTab} results for result #${id}. Suggest concrete AMPL/.dat edits to improve the model.`
+    openWithResultContext({ resultId: id, analysisFocus: activeTab }, seedMessage)
+  }
+
+  const getNoDataReason = () => {
+    if (!resultSummary) return 'No visualization data available for this result.'
+    if (resultSummary.status === 'error') {
+      return `This run ended with an error: ${resultSummary.error_message || 'No details available.'}`
+    }
+    if (resultSummary.status === 'infeasible') {
+      return 'The model is infeasible, so no feasible flow/variable values are available for visualization.'
+    }
+    return 'No visualization data available for this result.'
   }
 
   const tabs = [
@@ -70,12 +94,21 @@ export default function Visualization() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold">Result #{resultId}</h2>
-          <p className="text-sm text-gray-500">Visualization and analysis</p>
+          <p className="text-sm text-gray-500">
+            Visualization and analysis
+            {resultSummary ? ` • ${resultSummary.status}` : ''}
+          </p>
         </div>
-        <Button variant="outline">
-          <Download size={18} />
-          Export
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={explainResults}>
+            <MessageSquare size={18} />
+            Explain Results
+          </Button>
+          <Button variant="outline">
+            <Download size={18} />
+            Export
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -121,7 +154,12 @@ export default function Visualization() {
                 />
               ) : (
                 <div className="h-96 flex items-center justify-center text-gray-500">
-                  No network data available for this result
+                  {getNoDataReason()}
+                </div>
+              )}
+              {networkData?.reason && (
+                <div className="px-4 py-2 border-t border-gray-200 text-sm text-gray-500">
+                  {networkData.reason}
                 </div>
               )}
               {networkData?.summary && (
@@ -157,7 +195,7 @@ export default function Visualization() {
                   />
                 ) : (
                   <div className="h-64 flex items-center justify-center text-gray-500">
-                    No shadow price data available
+                    {getNoDataReason()}
                   </div>
                 )}
               </Card>
@@ -174,7 +212,7 @@ export default function Visualization() {
                   />
                 ) : (
                   <div className="h-64 flex items-center justify-center text-gray-500">
-                    No reduced cost data available
+                    {getNoDataReason()}
                   </div>
                 )}
               </Card>
@@ -246,7 +284,7 @@ export default function Visualization() {
                 </div>
               ) : (
                 <div className="h-64 flex items-center justify-center text-gray-500">
-                  No variable data available
+                  {getNoDataReason()}
                 </div>
               )}
             </Card>

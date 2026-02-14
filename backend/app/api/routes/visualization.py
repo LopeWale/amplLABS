@@ -62,6 +62,11 @@ async def get_network_data(result_id: int, db: Session = Depends(get_db)):
     return {
         "nodes": list(nodes.values()),
         "edges": edges,
+        "reason": (
+            "No 2-index flow variables with positive values were found."
+            if not edges
+            else None
+        ),
         "summary": {
             "total_nodes": len(nodes),
             "total_edges": len(edges),

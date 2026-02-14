@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Code2, Play, BookOpen, TrendingUp, Plus, Clock } from 'lucide-react'
+import { Code2, Play, BookOpen, TrendingUp, Plus } from 'lucide-react'
 import Card, { CardHeader } from '../components/common/Card'
 import Button from '../components/common/Button'
 import { useModelStore } from '../store/modelStore'
@@ -9,7 +9,7 @@ import { learningApi } from '../api'
 export default function Dashboard() {
   const { models, fetchModels } = useModelStore()
   const [learningModules, setLearningModules] = useState<any[]>([])
-  const [recentRuns, setRecentRuns] = useState<any[]>([])
+  const [recentRuns] = useState<any[]>([])
 
   useEffect(() => {
     fetchModels()

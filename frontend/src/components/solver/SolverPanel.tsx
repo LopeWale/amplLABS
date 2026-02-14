@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Play, Square, Settings, Zap } from 'lucide-react'
+import { Play, Square, Zap } from 'lucide-react'
 import Card, { CardHeader } from '../common/Card'
 import Button from '../common/Button'
 import { useSolverStore } from '../../store/solverStore'

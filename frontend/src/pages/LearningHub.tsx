@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { BookOpen, CheckCircle, Circle, ChevronRight, Code2, Play } from 'lucide-react'
-import Card, { CardHeader } from '../components/common/Card'
+import Card from '../components/common/Card'
 import Button from '../components/common/Button'
 import { learningApi } from '../api'
 
@@ -164,7 +164,7 @@ export default function LearningHub() {
           <p className="text-xs text-gray-500 mb-4">{currentModule.description}</p>
 
           <div className="space-y-1">
-            {currentModule.lessons?.map((lesson, index) => (
+            {currentModule.lessons?.map((lesson) => (
               <button
                 key={lesson.id}
                 onClick={() => setCurrentLesson(lesson)}

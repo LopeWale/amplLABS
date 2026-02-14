@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/common/Layout'
 import Dashboard from './pages/Dashboard'
@@ -8,9 +7,10 @@ import LearningHub from './pages/LearningHub'
 import History from './pages/History'
 import WorkflowCanvas from './pages/WorkflowCanvas'
 import AITutor, { AITutorButton } from './components/learning/AITutor'
+import { useTutorStore } from './store/tutorStore'
 
 function App() {
-  const [isTutorOpen, setIsTutorOpen] = useState(false)
+  const { isOpen, open, close } = useTutorStore()
 
   return (
     <Layout>
@@ -27,8 +27,8 @@ function App() {
       </Routes>
 
       {/* AI Tutor */}
-      <AITutorButton onClick={() => setIsTutorOpen(true)} />
-      <AITutor isOpen={isTutorOpen} onClose={() => setIsTutorOpen(false)} />
+      <AITutorButton onClick={open} />
+      <AITutor isOpen={isOpen} onClose={close} />
     </Layout>
   )
 }

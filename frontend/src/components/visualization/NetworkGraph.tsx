@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useRef, useCallback } from 'react'
 import CytoscapeComponent from 'react-cytoscapejs'
 import cytoscape from 'cytoscape'
 // @ts-ignore
@@ -65,7 +65,7 @@ export default function NetworkGraph({
     })),
   ]
 
-  const stylesheet: cytoscape.Stylesheet[] = [
+  const stylesheet: any[] = [
     {
       selector: 'node',
       style: {

@@ -152,7 +152,7 @@ class AMPLEngine:
                         "status": "loading_data",
                         "message": "Loading data file...",
                     })
-                ampl.eval(data_content)
+                self._load_data_content(ampl, data_content)
 
             # Solve
             if progress_callback:
@@ -162,11 +162,8 @@ class AMPLEngine:
                 })
 
             start_time = datetime.now()
-            await asyncio.to_thread(ampl.solve)
+            solver_output = await asyncio.to_thread(self._solve_with_output_capture, ampl)
             solve_time = (datetime.now() - start_time).total_seconds()
-
-            # Get solve output
-            solver_output = ampl.getOutput()
 
             # Extract results
             result = SolveResult(
@@ -180,7 +177,7 @@ class AMPLEngine:
 
             # Extract MIP-specific info
             try:
-                result.iterations = int(ampl.getValue("_solve_elapsed_time") or 0)
+                result.iterations = int(ampl.getValue("_niter") or 0)
             except Exception:
                 pass
 
@@ -200,10 +197,40 @@ class AMPLEngine:
         try:
             solve_result = ampl.getValue("solve_result")
             if solve_result:
-                return str(solve_result).lower()
+                return self._normalize_status(str(solve_result))
         except Exception:
             pass
         return "unknown"
+
+    def _normalize_status(self, raw_status: str) -> str:
+        """Normalize AMPL solve status to UI-safe values."""
+        status = raw_status.strip().lower()
+
+        if any(token in status for token in ["solved", "optimal", "locally optimal", "globally optimal"]):
+            return "optimal"
+        if "infeasible" in status:
+            return "infeasible"
+        if "unbounded" in status:
+            return "unbounded"
+        if "error" in status or "fail" in status:
+            return "error"
+
+        return "unknown"
+
+    def _solve_with_output_capture(self, ampl: AMPL) -> str:
+        """Run solve and capture solver output with safe fallback."""
+        try:
+            return ampl.getOutput("solve;")
+        except Exception:
+            # Some AMPL builds may not support output capture for solve statements.
+            ampl.solve()
+            return ""
+
+    def _load_data_content(self, ampl: AMPL, data_content: str) -> None:
+        """Load .dat content in AMPL data mode."""
+        ampl.eval("data;")
+        ampl.eval(data_content)
+        ampl.eval("model;")
 
     def _get_objective_value(self, ampl: AMPL) -> float | None:
         """Get the objective function value."""
@@ -287,7 +314,7 @@ class AMPLEngine:
         try:
             ampl.eval(model_content)
             if data_content:
-                ampl.eval(data_content)
+                self._load_data_content(ampl, data_content)
 
             info = {
                 "sets": [],

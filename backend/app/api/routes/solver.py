@@ -4,10 +4,18 @@ import uuid
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app.db.database import get_db
 from app.models import AMPLModel, DataFile, OptimizationRun, VariableResult, ConstraintResult
-from app.schemas.solver import SolverRunRequest, SolverRunResponse, SolverStatus, SolverInfo
+from app.schemas.solver import (
+    SolverRunRequest,
+    SolverRunResponse,
+    SolverStatus,
+    SolverInfo,
+    SolverResultSummary,
+    SolverResultList,
+)
 from app.core.ampl_engine import ampl_engine
 
 router = APIRouter()
@@ -88,6 +96,61 @@ async def run_solver(
     )
 
 
+def _serialize_run(opt_run: OptimizationRun) -> SolverResultSummary:
+    """Serialize optimization run for API responses."""
+    return SolverResultSummary(
+        id=opt_run.id,
+        model_id=opt_run.model_id,
+        model_name=opt_run.model.name if opt_run.model else None,
+        data_file_id=opt_run.data_file_id,
+        solver_name=opt_run.solver_name,
+        solver_options=opt_run.solver_options or {},
+        status=opt_run.status,
+        objective_value=opt_run.objective_value,
+        solve_time=opt_run.solve_time,
+        iterations=opt_run.iterations,
+        nodes=opt_run.nodes,
+        gap=opt_run.gap,
+        solver_output=opt_run.solver_output,
+        sensitivity_data=opt_run.sensitivity_data,
+        error_message=opt_run.error_message,
+        started_at=opt_run.started_at,
+        completed_at=opt_run.completed_at,
+        created_at=opt_run.created_at,
+    )
+
+
+@router.get("/results", response_model=SolverResultList)
+async def list_results(
+    skip: int = 0,
+    limit: int = 50,
+    model_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    """List persisted optimization results."""
+    query = db.query(OptimizationRun)
+    if model_id is not None:
+        query = query.filter(OptimizationRun.model_id == model_id)
+
+    total = query.with_entities(func.count(OptimizationRun.id)).scalar() or 0
+    runs = (
+        query.order_by(OptimizationRun.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    return SolverResultList(total=total, items=[_serialize_run(run) for run in runs])
+
+
+@router.get("/results/{result_id}", response_model=SolverResultSummary)
+async def get_result(result_id: int, db: Session = Depends(get_db)):
+    """Get a specific optimization result."""
+    run = db.query(OptimizationRun).filter(OptimizationRun.id == result_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Result not found")
+    return _serialize_run(run)
+
+
 async def _execute_solver(
     job_id: str,
     run_id: int,
@@ -126,7 +189,8 @@ async def _execute_solver(
         )
 
         # Update optimization run with results
-        opt_run.status = result.status
+        normalized_status = "error" if result.status == "error" else result.status
+        opt_run.status = normalized_status
         opt_run.objective_value = result.objective_value
         opt_run.solve_time = result.solve_time
         opt_run.iterations = result.iterations
@@ -135,6 +199,13 @@ async def _execute_solver(
         opt_run.solver_output = result.solver_output
         opt_run.error_message = result.error_message
         opt_run.completed_at = datetime.utcnow()
+
+        if normalized_status == "error":
+            db.commit()
+            _job_status[job_id]["status"] = "failed"
+            _job_status[job_id]["result_id"] = run_id
+            _job_status[job_id]["error"] = result.error_message or "Solver execution failed"
+            return
 
         # Store variable results
         for var_name, var_data in result.variables.items():

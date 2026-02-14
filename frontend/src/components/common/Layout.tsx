@@ -8,8 +8,7 @@ import {
   History,
   Menu,
   X,
-  Workflow,
-  Upload
+  Workflow
 } from 'lucide-react'
 import { useState } from 'react'
 

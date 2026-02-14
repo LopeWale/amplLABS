@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CheckCircle, XCircle, BarChart3, Download, ExternalLink } from 'lucide-react'
 import Button from '../common/Button'
-import api from '../../api'
 
 interface ResultsPanelProps {
   resultId: number

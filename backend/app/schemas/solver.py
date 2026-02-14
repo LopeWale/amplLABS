@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 class SolverRunRequest(BaseModel):
@@ -45,3 +46,33 @@ class SolverCompareRequest(BaseModel):
     data_file_id: int | None = None
     solvers: list[str] = Field(..., min_length=1)
     options: dict = Field(default_factory=dict)
+
+
+class SolverResultSummary(BaseModel):
+    """Summary of a persisted optimization run."""
+
+    id: int
+    model_id: int
+    model_name: str | None = None
+    data_file_id: int | None = None
+    solver_name: str
+    solver_options: dict = Field(default_factory=dict)
+    status: str
+    objective_value: float | None = None
+    solve_time: float | None = None
+    iterations: int | None = None
+    nodes: int | None = None
+    gap: float | None = None
+    solver_output: str | None = None
+    sensitivity_data: dict | None = None
+    error_message: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    created_at: datetime
+
+
+class SolverResultList(BaseModel):
+    """Paginated solver result list."""
+
+    total: int
+    items: list[SolverResultSummary]

@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Send, Bot, User, Lightbulb, Code, HelpCircle, X, Maximize2, Minimize2 } from 'lucide-react'
 import Button from '../common/Button'
-import Card from '../common/Card'
+import { tutorApi } from '../../api'
+import { useTutorStore } from '../../store/tutorStore'
 
 interface Message {
   id: string
@@ -18,6 +19,7 @@ interface AITutorProps {
 }
 
 export default function AITutor({ context, isOpen, onClose }: AITutorProps) {
+  const { resultContext, seedMessage, setSeedMessage, clearResultContext } = useTutorStore()
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -30,12 +32,13 @@ export default function AITutor({ context, isOpen, onClose }: AITutorProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const seededMessageSentRef = useRef(false)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const sendMessage = async (text: string) => {
+  const sendMessage = useCallback(async (text: string) => {
     if (!text.trim()) return
 
     const userMessage: Message = {
@@ -49,16 +52,14 @@ export default function AITutor({ context, isOpen, onClose }: AITutorProps) {
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/v1/tutor/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          context: context,
-        }),
+      const response = await tutorApi.ask({
+        message: text,
+        context,
+        result_id: resultContext?.resultId,
+        analysis_focus: resultContext?.analysisFocus,
+        include_visualization_context: !!resultContext,
       })
-
-      const data = await response.json()
+      const data = response.data
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -81,13 +82,29 @@ export default function AITutor({ context, isOpen, onClose }: AITutorProps) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [context, resultContext])
+
+  useEffect(() => {
+    if (!isOpen) {
+      seededMessageSentRef.current = false
+      return
+    }
+    if (!seedMessage || seededMessageSentRef.current) return
+
+    seededMessageSentRef.current = true
+    sendMessage(seedMessage)
+    setSeedMessage(null)
+  }, [isOpen, seedMessage, sendMessage, setSeedMessage])
 
   const handleSuggestionClick = (suggestion: string) => {
     sendMessage(suggestion)
   }
 
   if (!isOpen) return null
+
+  const contextBadge = resultContext
+    ? `Result #${resultContext.resultId} • ${resultContext.analysisFocus}`
+    : null
 
   return (
     <div
@@ -100,8 +117,22 @@ export default function AITutor({ context, isOpen, onClose }: AITutorProps) {
         <div className="flex items-center gap-2 text-white">
           <Bot size={20} />
           <span className="font-semibold">AMPL Tutor</span>
+          {contextBadge && (
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/20 border border-white/30 uppercase tracking-wide">
+              {contextBadge}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1">
+          {resultContext && (
+            <button
+              onClick={clearResultContext}
+              className="px-2 py-1 text-[11px] rounded bg-white/20 hover:bg-white/30 text-white transition-colors"
+              title="Clear result context"
+            >
+              Clear
+            </button>
+          )}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
